@@ -1,0 +1,22 @@
+{
+    "core": {
+        "error.no_permission": "У вас недостаточно прав для использования этой команды.",
+        "error.no_bot_permission": "У меня недостаточно прав для выполнения этой команды.",
+        "error.no_role": "У вас нет нужной роли для использования этой команды.",
+        "error.cooldown": "Подождите. Вы сможете использовать эту команду через %s сек."
+    },
+    "app": {
+        "command.test.name": "тест",
+        "command.test.desc": "Главная тестовая команда",
+        "command.test.ping.name": "пинг",
+        "command.test.ping.desc": "Узнать задержку бота",
+        "command.test.hello.name": "привет",
+        "command.test.hello.desc": "Передать привет пользователю",
+        "command.test.hello.opt.user.name": "пользователь",
+        "command.test.hello.opt.user.desc": "Кого поприветствовать?",
+        "command.test.ping.reply": "Мой текущий пинг: `%ping% ms`",
+        "command.test.ping.btn": "Обновить",
+        "command.test.hello.reply": "Привет, %user%!",
+        "command.test.ping.refresh": "Пинг обновлен: `%ping% ms`"
+    }
+}

@@ -1,0 +1,18 @@
+package dev.tokishu.jdkit.event
+
+import dev.tokishu.jdkit.BotComponent
+import net.dv8tion.jda.api.JDA
+import net.dv8tion.jda.api.hooks.ListenerAdapter
+
+/**
+ * Base class for all event listeners.
+ * Provides access to the [JDA] instance.
+ */
+abstract class BaseEvent : ListenerAdapter(), BotComponent {
+    
+    // Internal property to allow the core to set JDA, while exposing only the getter through BotComponent
+    internal lateinit var _jda: JDA
+    
+    override val jda: JDA
+        get() = _jda
+}

@@ -1,0 +1,34 @@
+<configuration>
+
+    <!-- Optional Console Appender -->
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <!-- A nice Spring Boot-like console pattern -->
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %5p --- [%t] %-40.40logger{39} : %m%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- 
+        If running with -Ddebug=true or through Spring's \-\-debug flag, 
+        LogLevel will be DEBUG. Otherwise, default to INFO.
+    -->
+    <property name="LOG_LEVEL" value="${debug:-INFO}" />
+    <!-- Override default to INFO if debug flag is specifically true -->
+    <if condition='property("debug").contains("true")'>
+        <then>
+            <property name="LOG_LEVEL" value="DEBUG" />
+        </then>
+    </if>
+
+    <!-- Configure specific loggers -->
+    <logger name="dev.tokishu.jdkit" level="${LOG_LEVEL}" />
+
+    <!-- Hide JDA verbose logs unless specifically requesting debug or warn -->
+    <logger name="net.dv8tion" level="WARN" />
+
+    <!-- Root Logger -->
+    <root level="WARN">
+        <appender-ref ref="STDOUT" />
+    </root>
+
+</configuration>

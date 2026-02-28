@@ -1,0 +1,16 @@
+jdkit:
+  # The Discord Bot Token. Can be loaded from .env file via ${DISCORD_TOKEN}
+  token: "${DISCORD_TOKEN}"
+  
+  # Localization settings for internal bot messages (errors, cooldowns)
+  locale:
+    default: "ru"
+    prefer-user: true
+  
+  # Guild specific settings
+  guild:
+    # ID of the main guild
+    main: "123456789012345678"
+    
+    # If true, commands will only be registered in the main guild (useful for rapid testing / private bots)
+    only-main-guild: false

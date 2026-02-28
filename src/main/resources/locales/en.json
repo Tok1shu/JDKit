@@ -1,0 +1,22 @@
+{
+    "core": {
+        "error.no_permission": "You lack the required permissions to execute this command.",
+        "error.no_bot_permission": "I lack the required permissions to execute this command.",
+        "error.no_role": "You lack the required role to execute this command.",
+        "error.cooldown": "Please wait. You can use this command again in %s seconds."
+    },
+    "app": {
+        "command.test.name": "test",
+        "command.test.desc": "Main test command",
+        "command.test.ping.name": "ping",
+        "command.test.ping.desc": "Check bot latency",
+        "command.test.hello.name": "hello",
+        "command.test.hello.desc": "Say hello to a user",
+        "command.test.hello.opt.user.name": "user",
+        "command.test.hello.opt.user.desc": "Who to greet?",
+        "command.test.ping.reply": "My current ping is: `%ping% ms`",
+        "command.test.ping.btn": "Refresh",
+        "command.test.hello.reply": "Hello, %user%!",
+        "command.test.ping.refresh": "Ping updated: `%ping% ms`"
+    }
+}
