@@ -1,5 +1,6 @@
 package dev.tokishu.jdkit.di
 
+import dev.tokishu.jdkit.BotComponent
 import org.slf4j.LoggerFactory
 
 /**
@@ -85,7 +86,7 @@ object DependencyContainer {
      * the provided JDA instance into its protected `_jda` base field.
      */
     fun injectJda(instance: Any, jda: net.dv8tion.jda.api.JDA) {
-        if (instance is dev.tokishu.jdkit.BotComponent) {
+        if (instance is BotComponent) {
             var currentClass: Class<*>? = instance.javaClass
             var field: java.lang.reflect.Field? = null
             while (currentClass != null) {

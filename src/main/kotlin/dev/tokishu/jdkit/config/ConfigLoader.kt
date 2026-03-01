@@ -28,13 +28,13 @@ object ConfigLoader {
      * Loads the JDKitProperties from the given resource path.
      * Replaces variable Placeholders (e.g. ${DISCORD_TOKEN}) with values from the .env file or environment.
      */
-    fun loadConfig(resourcePath: String = "/application.yml"): dev.tokishu.jdkit.config.JDKitProperties {
+    fun loadConfig(resourcePath: String = "/application.yml"): JDKitProperties {
         // Load the dotenv file (silently ignores if not found in root dir)
         val dotenv = dotenv {
             ignoreIfMissing = true
         }
         
-        val stream: InputStream? = dev.tokishu.jdkit.config.JDKitProperties::class.java.getResourceAsStream(resourcePath)
+        val stream: InputStream? = JDKitProperties::class.java.getResourceAsStream(resourcePath)
         
         return if (stream != null) {
             // Read YAML to string to process ENV replacements before parsing with Jackson
@@ -54,13 +54,13 @@ object ConfigLoader {
             val jdkitNode = rootNode.get("jdkit")
             
             if (jdkitNode != null) {
-                mapper.treeToValue(jdkitNode, dev.tokishu.jdkit.config.JDKitProperties::class.java)
+                mapper.treeToValue(jdkitNode, JDKitProperties::class.java)
             } else {
-                mapper.treeToValue(rootNode, dev.tokishu.jdkit.config.JDKitProperties::class.java)
+                mapper.treeToValue(rootNode, JDKitProperties::class.java)
             }
         } else {
             logger.warn("Configuration file {} not found! Using default empty config.", resourcePath)
-            dev.tokishu.jdkit.config.JDKitProperties()
+            JDKitProperties()
         }
     }
 }

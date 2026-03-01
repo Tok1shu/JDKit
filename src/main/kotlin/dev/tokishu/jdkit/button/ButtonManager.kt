@@ -12,13 +12,14 @@ import dev.tokishu.jdkit.di.DependencyContainer
 import org.slf4j.LoggerFactory
 import java.util.concurrent.CompletableFuture
 import dev.tokishu.jdkit.component.AbstractComponentManager
+import dev.tokishu.jdkit.config.JDKitProperties
 
-class ButtonManager : AbstractComponentManager<dev.tokishu.jdkit.button.internal.ButtonWrapper>() {
+class ButtonManager : AbstractComponentManager<ButtonWrapper>() {
 
     override val log = LoggerFactory.getLogger(ButtonManager::class.java)
     private lateinit var jda: JDA
 
-    override fun onEnable(jda: JDA, config: dev.tokishu.jdkit.config.JDKitProperties, basePackage: String) {
+    override fun onEnable(jda: JDA, config: JDKitProperties, basePackage: String) {
         this.jda = jda
         jda.addEventListener(this)
         registerHandlers(basePackage)

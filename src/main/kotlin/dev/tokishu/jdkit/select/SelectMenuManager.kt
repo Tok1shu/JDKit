@@ -12,13 +12,14 @@ import java.util.regex.Pattern
 import dev.tokishu.jdkit.di.DependencyContainer
 import org.slf4j.LoggerFactory
 import dev.tokishu.jdkit.component.AbstractComponentManager
+import dev.tokishu.jdkit.config.JDKitProperties
 
-class SelectMenuManager : AbstractComponentManager<dev.tokishu.jdkit.select.internal.SelectMenuWrapper>() {
+class SelectMenuManager : AbstractComponentManager<SelectMenuWrapper>() {
 
     override val log = LoggerFactory.getLogger(SelectMenuManager::class.java)
     private lateinit var jda: JDA
 
-    override fun onEnable(jda: JDA, config: dev.tokishu.jdkit.config.JDKitProperties, basePackage: String) {
+    override fun onEnable(jda: JDA, config: JDKitProperties, basePackage: String) {
         this.jda = jda
         jda.addEventListener(this)
         registerHandlers(basePackage)

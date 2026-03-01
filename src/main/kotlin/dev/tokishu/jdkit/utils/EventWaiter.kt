@@ -195,7 +195,7 @@ object EventWaiter : ListenerAdapter() {
 class EventWaiterExtension : BotExtension {
     private val logger = LoggerFactory.getLogger(EventWaiterExtension::class.java)
 
-    override fun onEnable(jda: JDA, config: dev.tokishu.jdkit.config.JDKitProperties, basePackage: String) {
+    override fun onEnable(jda: JDA, config: JDKitProperties, basePackage: String) {
         jda.addEventListener(EventWaiter)
         logger.info("Registered EventWaiter utility")
     }

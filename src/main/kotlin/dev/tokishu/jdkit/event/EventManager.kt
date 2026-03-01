@@ -1,15 +1,17 @@
 package dev.tokishu.jdkit.event
 
 import dev.tokishu.jdkit.BotComponent
+import dev.tokishu.jdkit.config.JDKitProperties
 import dev.tokishu.jdkit.di.DependencyContainer
 import dev.tokishu.jdkit.event.annotation.JDKitEvent
+import dev.tokishu.jdkit.extension.BotExtension
 import net.dv8tion.jda.api.JDA
 import net.dv8tion.jda.api.hooks.AnnotatedEventManager
 import org.reflections.Reflections
 import org.reflections.scanners.Scanners
 import org.slf4j.LoggerFactory
 
-class EventManager : dev.tokishu.jdkit.extension.BotExtension {
+class EventManager : BotExtension {
 
     private val logger = LoggerFactory.getLogger(EventManager::class.java)
 
@@ -20,7 +22,7 @@ class EventManager : dev.tokishu.jdkit.extension.BotExtension {
      * instantiates them, injects JDA if applicable, 
      * and registers them dynamically with the JDA AnnotatedEventManager.
      */
-    override fun onEnable(jda: JDA, config: dev.tokishu.jdkit.config.JDKitProperties, basePackage: String) {
+    override fun onEnable(jda: JDA, config: JDKitProperties, basePackage: String) {
         this.jda = jda
         registerEvents(basePackage)
     }

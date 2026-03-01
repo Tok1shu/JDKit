@@ -1,29 +1,46 @@
 package dev.tokishu.jdkit.command
 
-import dev.tokishu.jdkit.command.annotation.*
+import dev.tokishu.jdkit.command.annotation.JDKitContextMenu
+import dev.tokishu.jdkit.command.annotation.JDKitSubcommand
+import dev.tokishu.jdkit.command.annotation.cooldown.CooldownInterceptor
+import dev.tokishu.jdkit.command.annotation.owner.OwnerInterceptor
+import dev.tokishu.jdkit.command.annotation.permission.BotPermissionInterceptor
+import dev.tokishu.jdkit.command.annotation.permission.UserPermissionInterceptor
+import dev.tokishu.jdkit.command.annotation.role.UserRoleInterceptor
+import dev.tokishu.jdkit.command.exception.ExceptionHandler
+import dev.tokishu.jdkit.command.interceptor.CommandInterceptor
+import dev.tokishu.jdkit.command.internal.ArgumentMapper
 import dev.tokishu.jdkit.command.internal.CommandWrapper
+import dev.tokishu.jdkit.command.internal.ContextMenuWrapper
 import dev.tokishu.jdkit.config.JDKitProperties
-import dev.tokishu.jdkit.locale.LocalizationManager
 import dev.tokishu.jdkit.di.DependencyContainer
+import dev.tokishu.jdkit.extension.BotExtension
 import net.dv8tion.jda.api.JDA
-import net.dv8tion.jda.api.Permission
-import net.dv8tion.jda.api.entities.Role
+import net.dv8tion.jda.api.entities.Message
 import net.dv8tion.jda.api.entities.User
-import net.dv8tion.jda.api.entities.channel.middleman.GuildChannel
 import net.dv8tion.jda.api.events.interaction.command.MessageContextInteractionEvent
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent
 import net.dv8tion.jda.api.events.interaction.command.UserContextInteractionEvent
 import net.dv8tion.jda.api.hooks.ListenerAdapter
+import net.dv8tion.jda.api.hooks.SubscribeEvent
+import net.dv8tion.jda.api.interactions.InteractionContextType
+import net.dv8tion.jda.api.interactions.commands.Command
+import net.dv8tion.jda.api.interactions.commands.OptionType
+import net.dv8tion.jda.api.interactions.commands.build.CommandData
 import net.dv8tion.jda.api.interactions.commands.build.Commands
-import java.util.concurrent.CompletableFuture
 import net.dv8tion.jda.api.interactions.commands.build.OptionData
+import net.dv8tion.jda.api.interactions.commands.build.SlashCommandData
 import net.dv8tion.jda.api.interactions.commands.build.SubcommandData
 import org.reflections.Reflections
 import org.reflections.scanners.Scanners
 import org.slf4j.LoggerFactory
+import java.lang.reflect.Member
+import java.lang.reflect.Method
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.Executors.newCachedThreadPool
 
-class CommandManager : ListenerAdapter(), dev.tokishu.jdkit.extension.BotExtension {
+class CommandManager : ListenerAdapter(), BotExtension {
 
     private val logger = LoggerFactory.getLogger(CommandManager::class.java)
 
@@ -31,11 +48,11 @@ class CommandManager : ListenerAdapter(), dev.tokishu.jdkit.extension.BotExtensi
     private lateinit var config: JDKitProperties
 
     // Execute commands asynchronously on JVM thread pool
-    private val executor = java.util.concurrent.Executors.newCachedThreadPool()
+    private val executor = newCachedThreadPool()
 
     private val storedCommands = mutableMapOf<String, CommandWrapper>()
     private val subCommands = mutableMapOf<String, MutableMap<String, CommandWrapper>>()
-    private val contextCommands = mutableMapOf<String, dev.tokishu.jdkit.command.internal.ContextMenuWrapper>()
+    private val contextCommands = mutableMapOf<String, ContextMenuWrapper>()
     
     // Cooldown map: key = "userId_commandName", value = Timestamp of expiry
     private val cooldowns = ConcurrentHashMap<String, Long>()
@@ -45,11 +62,11 @@ class CommandManager : ListenerAdapter(), dev.tokishu.jdkit.extension.BotExtensi
         this.config = config
         
         // Register default interceptors
-        addInterceptor(dev.tokishu.jdkit.command.annotation.cooldown.CooldownInterceptor(config))
-        addInterceptor(dev.tokishu.jdkit.command.annotation.permission.BotPermissionInterceptor(config))
-        addInterceptor(dev.tokishu.jdkit.command.annotation.permission.UserPermissionInterceptor(config))
-        addInterceptor(dev.tokishu.jdkit.command.annotation.role.UserRoleInterceptor(config))
-        addInterceptor(dev.tokishu.jdkit.command.annotation.owner.OwnerInterceptor(config))
+        addInterceptor(CooldownInterceptor(config))
+        addInterceptor(BotPermissionInterceptor(config))
+        addInterceptor(UserPermissionInterceptor(config))
+        addInterceptor(UserRoleInterceptor(config))
+        addInterceptor(OwnerInterceptor(config))
 
         jda.addEventListener(this)
         registerCommands(basePackage)
@@ -69,7 +86,7 @@ class CommandManager : ListenerAdapter(), dev.tokishu.jdkit.extension.BotExtensi
             
             val cmdData = Commands.slash(baseName, jdaCommand.description)
             if (jdaCommand.isGuildOnly) {
-                cmdData.setContexts(net.dv8tion.jda.api.interactions.InteractionContextType.GUILD)
+                cmdData.setContexts(InteractionContextType.GUILD)
             }
 
             val instance = clazz.getDeclaredConstructor().newInstance()
@@ -120,7 +137,7 @@ class CommandManager : ListenerAdapter(), dev.tokishu.jdkit.extension.BotExtensi
 
     private fun registerStandaloneSubcommands(
         baseName: String,
-        cmdData: net.dv8tion.jda.api.interactions.commands.build.SlashCommandData,
+        cmdData: SlashCommandData,
         subCmdMap: MutableMap<String, CommandWrapper>,
         subCommandClasses: Set<Class<*>>
     ) {
@@ -155,7 +172,7 @@ class CommandManager : ListenerAdapter(), dev.tokishu.jdkit.extension.BotExtensi
             
             val cmdData = Commands.context(anno.type, name)
             if (anno.isGuildOnly) {
-                cmdData.setContexts(net.dv8tion.jda.api.interactions.InteractionContextType.GUILD)
+                cmdData.setContexts(InteractionContextType.GUILD)
             }
 
             val executeMethod = clazz.declaredMethods.find { it.name == "execute" }
@@ -164,7 +181,7 @@ class CommandManager : ListenerAdapter(), dev.tokishu.jdkit.extension.BotExtensi
                 DependencyContainer.injectJda(instance, jda)
                 DependencyContainer.injectInto(instance)
                 
-                contextCommands[name] = dev.tokishu.jdkit.command.internal.ContextMenuWrapper(instance, executeMethod, anno.type)
+                contextCommands[name] = ContextMenuWrapper(instance, executeMethod, anno.type)
                 logger.info("Registered Context Menu /{} ({})", name, anno.type)
                 
                 upsertCommand(cmdData)
@@ -172,7 +189,7 @@ class CommandManager : ListenerAdapter(), dev.tokishu.jdkit.extension.BotExtensi
         }
     }
 
-    private fun upsertCommand(cmdData: net.dv8tion.jda.api.interactions.commands.build.CommandData) {
+    private fun upsertCommand(cmdData: CommandData) {
         if (config.guild.onlyMainGuild && config.guild.main.isNotBlank()) {
             val guild = jda.getGuildById(config.guild.main)
             guild?.upsertCommand(cmdData)?.queue()
@@ -181,11 +198,11 @@ class CommandManager : ListenerAdapter(), dev.tokishu.jdkit.extension.BotExtensi
         }
     }
 
-    private fun applyOptions(method: java.lang.reflect.Method, cmdData: Any, localePrefix: String) {
-        val addOptFunc = { type: net.dv8tion.jda.api.interactions.commands.OptionType, name: String, desc: String, req: Boolean, autoComp: Boolean ->
+    private fun applyOptions(method: Method, cmdData: Any, localePrefix: String) {
+        val addOptFunc = { type: OptionType, name: String, desc: String, req: Boolean, autoComp: Boolean ->
             val opt = OptionData(type, name, desc, req, autoComp)
 
-            if (cmdData is net.dv8tion.jda.api.interactions.commands.build.SlashCommandData) cmdData.addOptions(opt)
+            if (cmdData is SlashCommandData) cmdData.addOptions(opt)
             if (cmdData is SubcommandData) cmdData.addOptions(opt)
         }
 
@@ -201,13 +218,13 @@ class CommandManager : ListenerAdapter(), dev.tokishu.jdkit.extension.BotExtensi
         }
     }
 
-    private val interceptors = mutableListOf<dev.tokishu.jdkit.command.interceptor.CommandInterceptor>()
+    private val interceptors = mutableListOf<CommandInterceptor>()
 
-    fun addInterceptor(interceptor: dev.tokishu.jdkit.command.interceptor.CommandInterceptor) {
+    fun addInterceptor(interceptor: CommandInterceptor) {
         interceptors.add(interceptor)
     }
 
-    @net.dv8tion.jda.api.hooks.SubscribeEvent
+    @SubscribeEvent
     override fun onSlashCommandInteraction(event: SlashCommandInteractionEvent) {
         val baseName = event.name
         val subName = event.subcommandName
@@ -237,7 +254,7 @@ class CommandManager : ListenerAdapter(), dev.tokishu.jdkit.extension.BotExtensi
 
             logger.debug("Interceptors passed. Mapping arguments for /{} {}", baseName, subName ?: "")
             // Dynamically map arguments
-            val args = dev.tokishu.jdkit.command.internal.ArgumentMapper.mapArguments(wrapper.method, event)
+            val args = ArgumentMapper.mapArguments(wrapper.method, event)
 
             CompletableFuture.runAsync({
                 try {
@@ -245,7 +262,7 @@ class CommandManager : ListenerAdapter(), dev.tokishu.jdkit.extension.BotExtensi
                 } catch (e: Exception) {
                     logger.error("Error executing slash command handler for /{} {}", baseName, subName ?: "", e)
                     e.printStackTrace()
-                    dev.tokishu.jdkit.di.DependencyContainer.get(dev.tokishu.jdkit.command.exception.ExceptionHandler::class.java)?.handle(e, event) ?: run {
+                    DependencyContainer.get(ExceptionHandler::class.java)?.handle(e, event) ?: run {
                         if (!event.isAcknowledged) {
                             event.reply("Произошла ошибка при выполнении команды.").setEphemeral(true).queue()
                         }
@@ -256,28 +273,28 @@ class CommandManager : ListenerAdapter(), dev.tokishu.jdkit.extension.BotExtensi
         } catch (e: Exception) {
             println("Core: Error mapping slash command arguments for /${baseName} ${subName ?: ""}")
             e.printStackTrace()
-            dev.tokishu.jdkit.di.DependencyContainer.get(dev.tokishu.jdkit.command.exception.ExceptionHandler::class.java)?.handle(e, event)
+            DependencyContainer.get(ExceptionHandler::class.java)?.handle(e, event)
         }
     }
 
-    private fun mapContextArguments(wrapper: dev.tokishu.jdkit.command.internal.ContextMenuWrapper, event: net.dv8tion.jda.api.events.interaction.command.GenericContextInteractionEvent<*>): Array<Any?> {
+    private fun mapContextArguments(wrapper: ContextMenuWrapper, event: net.dv8tion.jda.api.events.interaction.command.GenericContextInteractionEvent<*>): Array<Any?> {
         return wrapper.method.parameters.map { param ->
             when {
                 param.type.isAssignableFrom(event.javaClass) -> event
                 param.type == User::class.java && event is UserContextInteractionEvent -> event.target
-                param.type == net.dv8tion.jda.api.entities.Member::class.java && event is UserContextInteractionEvent -> event.targetMember
-                param.type == net.dv8tion.jda.api.entities.Message::class.java && event is MessageContextInteractionEvent -> event.target
+                param.type == Member::class.java && event is UserContextInteractionEvent -> event.targetMember
+                param.type == Message::class.java && event is MessageContextInteractionEvent -> event.target
                 else -> null
             }
         }.toTypedArray()
     }
 
-    @net.dv8tion.jda.api.hooks.SubscribeEvent
+    @SubscribeEvent
     override fun onUserContextInteraction(event: UserContextInteractionEvent) {
         val name = event.name
         val wrapper = contextCommands[name] ?: return
         
-        if (wrapper.type != net.dv8tion.jda.api.interactions.commands.Command.Type.USER) return
+        if (wrapper.type != Command.Type.USER) return
 
         try {
             val args = mapContextArguments(wrapper, event)
@@ -287,7 +304,7 @@ class CommandManager : ListenerAdapter(), dev.tokishu.jdkit.extension.BotExtensi
                 } catch (e: Exception) {
                     logger.error("Error executing User Context Menu {}", name, e)
                     e.printStackTrace()
-                    dev.tokishu.jdkit.di.DependencyContainer.get(dev.tokishu.jdkit.command.exception.ExceptionHandler::class.java)?.handle(e, event) ?: run {
+                    DependencyContainer.get(ExceptionHandler::class.java)?.handle(e, event) ?: run {
                         if (!event.isAcknowledged) {
                             event.reply("An error occurred.").setEphemeral(true).queue()
                         }
@@ -297,16 +314,16 @@ class CommandManager : ListenerAdapter(), dev.tokishu.jdkit.extension.BotExtensi
         } catch (e: Exception) {
             logger.error("Error mapping arguments for User Context Menu {}", name, e)
             e.printStackTrace()
-            dev.tokishu.jdkit.di.DependencyContainer.get(dev.tokishu.jdkit.command.exception.ExceptionHandler::class.java)?.handle(e, event)
+            DependencyContainer.get(ExceptionHandler::class.java)?.handle(e, event)
         }
     }
 
-    @net.dv8tion.jda.api.hooks.SubscribeEvent
+    @SubscribeEvent
     override fun onMessageContextInteraction(event: MessageContextInteractionEvent) {
         val name = event.name
         val wrapper = contextCommands[name] ?: return
         
-        if (wrapper.type != net.dv8tion.jda.api.interactions.commands.Command.Type.MESSAGE) return
+        if (wrapper.type != Command.Type.MESSAGE) return
 
         try {
             val args = mapContextArguments(wrapper, event)
@@ -316,7 +333,7 @@ class CommandManager : ListenerAdapter(), dev.tokishu.jdkit.extension.BotExtensi
                 } catch (e: Exception) {
                     logger.error("Error executing Message Context Menu {}", name, e)
                     e.printStackTrace()
-                    dev.tokishu.jdkit.di.DependencyContainer.get(dev.tokishu.jdkit.command.exception.ExceptionHandler::class.java)?.handle(e, event) ?: run {
+                    DependencyContainer.get(ExceptionHandler::class.java)?.handle(e, event) ?: run {
                         if (!event.isAcknowledged) {
                             event.reply("An error occurred.").setEphemeral(true).queue()
                         }
@@ -326,7 +343,7 @@ class CommandManager : ListenerAdapter(), dev.tokishu.jdkit.extension.BotExtensi
         } catch (e: Exception) {
             logger.error("Error mapping arguments for Message Context Menu {}", name, e)
             e.printStackTrace()
-            dev.tokishu.jdkit.di.DependencyContainer.get(dev.tokishu.jdkit.command.exception.ExceptionHandler::class.java)?.handle(e, event)
+            DependencyContainer.get(ExceptionHandler::class.java)?.handle(e, event)
         }
     }
 }

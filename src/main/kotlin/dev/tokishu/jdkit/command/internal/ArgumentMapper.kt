@@ -25,7 +25,7 @@ object ArgumentMapper {
 
                     when (param.type) {
                         String::class.java -> option?.asString
-                        Int::class.java, java.lang.Integer::class.java -> option?.asInt
+                        Int::class.java, Integer::class.java -> option?.asInt
                         Long::class.java, java.lang.Long::class.java -> option?.asLong
                         Boolean::class.java, java.lang.Boolean::class.java -> option?.asBoolean
                         User::class.java -> option?.asUser

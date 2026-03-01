@@ -115,7 +115,7 @@ object PaginationListener : ListenerAdapter() {
 class PaginationExtension : BotExtension {
     private val logger = LoggerFactory.getLogger(PaginationExtension::class.java)
     
-    override fun onEnable(jda: JDA, config: dev.tokishu.jdkit.config.JDKitProperties, basePackage: String) {
+    override fun onEnable(jda: JDA, config: JDKitProperties, basePackage: String) {
         jda.addEventListener(PaginationListener)
         logger.info("Registered PaginationBuilder utility")
     }

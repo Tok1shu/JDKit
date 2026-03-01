@@ -1,5 +1,9 @@
 package dev.tokishu.jdkit.component
 
+import dev.tokishu.jdkit.command.exception.ExceptionHandler
+import dev.tokishu.jdkit.di.DependencyContainer
+import dev.tokishu.jdkit.extension.BotExtension
+import net.dv8tion.jda.api.events.interaction.GenericInteractionCreateEvent
 import net.dv8tion.jda.api.events.interaction.component.GenericComponentInteractionCreateEvent
 import net.dv8tion.jda.api.events.interaction.ModalInteractionEvent
 import net.dv8tion.jda.api.hooks.ListenerAdapter
@@ -13,7 +17,7 @@ import java.util.regex.Pattern
  * or Regex patterns, and executing them asynchronously with a thread pool.
  * Used by UI extensions like ButtonManager, ModalManager, and SelectMenuManager.
  */
-abstract class AbstractComponentManager<W : dev.tokishu.jdkit.component.ComponentWrapper> : ListenerAdapter(), dev.tokishu.jdkit.extension.BotExtension {
+abstract class AbstractComponentManager<W : ComponentWrapper> : ListenerAdapter(), BotExtension {
 
     protected val executor = Executors.newCachedThreadPool()
 
@@ -25,7 +29,7 @@ abstract class AbstractComponentManager<W : dev.tokishu.jdkit.component.Componen
     /**
      * Finds a matching wrapper for the given component ID and executes it.
      */
-    protected fun executeInteraction(componentId: String, event: net.dv8tion.jda.api.events.interaction.GenericInteractionCreateEvent) {
+    protected fun executeInteraction(componentId: String, event: GenericInteractionCreateEvent) {
         var wrapper = exactHandlers[componentId]
         
         if (wrapper == null) {
@@ -45,10 +49,10 @@ abstract class AbstractComponentManager<W : dev.tokishu.jdkit.component.Componen
                     
                     wrapper.method.invoke(wrapper.instance, *args)
                 } catch (e: Exception) {
-                    log.error("Error executing handler for {}", componentId, e)
+                    log.error("Error executing hazndler for {}", componentId, e)
                     e.printStackTrace()
                     if (event is net.dv8tion.jda.api.interactions.callbacks.IReplyCallback) {
-                        dev.tokishu.jdkit.di.DependencyContainer.get(dev.tokishu.jdkit.command.exception.ExceptionHandler::class.java)?.handle(e, event) ?: run {
+                        DependencyContainer.get(ExceptionHandler::class.java)?.handle(e, event) ?: run {
                             if (!event.isAcknowledged) {
                                 event.reply("An error occurred while handling this component.").setEphemeral(true).queue()
                             }

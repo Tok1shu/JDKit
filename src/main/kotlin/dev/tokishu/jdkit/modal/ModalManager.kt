@@ -13,7 +13,7 @@ import org.slf4j.LoggerFactory
 import java.util.concurrent.CompletableFuture
 import dev.tokishu.jdkit.component.AbstractComponentManager
 
-class ModalManager : AbstractComponentManager<dev.tokishu.jdkit.modal.internal.ModalWrapper>() {
+class ModalManager : AbstractComponentManager<ModalWrapper>() {
 
     override val log = LoggerFactory.getLogger(ModalManager::class.java)
     private lateinit var jda: JDA
