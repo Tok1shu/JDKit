@@ -13,8 +13,8 @@ object SpringLauncher {
     @JvmStatic
     fun launch(callerClass: Class<*>, args: Array<String>, basePackage: String) {
         val app = SpringApplication(callerClass)
-        app.webApplicationType = WebApplicationType.NONE
-        
+        app.setWebApplicationType(WebApplicationType.NONE)
+
         // Pass the base package down to the AutoConfiguration
         val props = Properties()
         props.setProperty("jdkit.base-package", basePackage)
