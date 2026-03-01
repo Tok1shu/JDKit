@@ -5,5 +5,3 @@ ossrhUsername=
 ossrhPassword=
 
 signing.keyId=
-signing.password=
-signing.secretKeyRingFile=

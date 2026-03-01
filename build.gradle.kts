@@ -1,4 +1,5 @@
 plugins {
+    id("org.jetbrains.dokka") version "1.9.20"
     kotlin("jvm") version "2.2.21"
     kotlin("plugin.spring") version "2.2.21"
     `java-library`
@@ -102,5 +103,6 @@ tasks.register<JavaExec>("runApp") {
 }
 
 signing {
+    useGpgCmd()
     sign(publishing.publications["mavenJava"])
 }
