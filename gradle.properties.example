@@ -1,7 +1,7 @@
 kotlin.code.style=official
 
 
-ossrhUsername=
-ossrhPassword=
+mavenCentralUsername=
+mavenCentralPassword=
 
 signing.keyId=
