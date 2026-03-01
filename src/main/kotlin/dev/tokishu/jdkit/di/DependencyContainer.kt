@@ -68,7 +68,7 @@ object DependencyContainer {
                             field.isAccessible = true
                             field.set(instance, dependency)
                         } else {
-                            logger.warn("Spring bean for type {} not found for {}", field.type.name, instance.javaClass.simpleName)
+                            logger.warn("Dependency of type {} not found for {}", field.type.name, instance.javaClass.simpleName)
                         }
                     } catch (e: Exception) {
                         logger.error("Error injecting {} into {}", field.type.simpleName, instance.javaClass.simpleName, e)
