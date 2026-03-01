@@ -5,6 +5,8 @@ import dev.tokishu.jdkit.config.ConfigLoader
 import dev.tokishu.jdkit.di.DependencyContainer
 import dev.tokishu.jdkit.extension.BotExtension
 import dev.tokishu.jdkit.locale.LocalizationManager
+import dev.tokishu.jdkit.presence.PresenceManager
+import net.dv8tion.jda.api.JDA
 import net.dv8tion.jda.api.JDABuilder
 import net.dv8tion.jda.api.requests.GatewayIntent
 import org.reflections.Reflections
@@ -84,23 +86,40 @@ object JDKitApplication {
 
         LocalizationManager.loadLocales()
 
+        // Register core components that cannot be instantiated via BotExtension scanner
+        DependencyContainer.register(JDA::class.java, jda)
+        DependencyContainer.register(PresenceManager::class.java, PresenceManager(jda))
+
         val reflections = Reflections(basePackage)
         val extensionClasses = reflections.getSubTypesOf(BotExtension::class.java)
 
         logger.info("JDKit: Found ${extensionClasses.size} BotExtensions via Native Scanner. Enabling...")
+
+        val instances = mutableListOf<BotExtension>()
         for (clazz in extensionClasses) {
             if (clazz.isInterface || java.lang.reflect.Modifier.isAbstract(clazz.modifiers)) continue
             try {
-                // Instantiate extension natively
                 val instance = clazz.kotlin.objectInstance ?: clazz.getDeclaredConstructor().newInstance()
-                
-                // Register in our native DependencyContainer so @Inject works
-                DependencyContainer.register(instance as Any)
-                
-                instance.onEnable(jda, config, basePackage)
-                logger.info("JDKit: Enabled Extension - ${clazz.simpleName}")
+
+                @Suppress("UNCHECKED_CAST")
+                DependencyContainer.register(clazz as Class<Any>, instance as Any)
+
+                instances.add(instance)
             } catch (e: Exception) {
-                logger.error("JDKit: Error enabling ${clazz.simpleName}", e)
+                logger.error("JDKit: Error instantiating ${clazz.simpleName}", e)
+            }
+        }
+
+        for (instance in instances) {
+            DependencyContainer.injectInto(instance)
+        }
+
+        for (instance in instances) { // TODO: fix dublicate
+            try {
+                instance.onEnable(jda, config, basePackage)
+                logger.info("JDKit: Enabled Extension - ${instance.javaClass.simpleName}")
+            } catch (e: Exception) {
+                logger.error("JDKit: Error enabling ${instance.javaClass.simpleName}", e)
             }
         }
         logger.info("JDKit: Native Initialization complete!")

@@ -7,6 +7,7 @@ import dev.tokishu.jdkit.event.EventManager
 import dev.tokishu.jdkit.extension.BotExtension
 import dev.tokishu.jdkit.locale.LocalizationManager
 import dev.tokishu.jdkit.modal.ModalManager
+import dev.tokishu.jdkit.presence.PresenceManager
 import dev.tokishu.jdkit.schedule.TaskScheduler
 import dev.tokishu.jdkit.select.SelectMenuManager
 import dev.tokishu.jdkit.utils.EventWaiterExtension
@@ -62,6 +63,10 @@ open class JDKitAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     open fun eventWaiterExtension() = EventWaiterExtension()
+
+    @Bean
+    @ConditionalOnMissingBean
+    open fun presenceManager(jda: JDA) = PresenceManager(jda)
 
     @Bean
     @ConditionalOnMissingBean

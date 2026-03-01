@@ -57,7 +57,7 @@ object DependencyContainer {
      * using the injected Spring ApplicationContext.
      */
     fun injectInto(instance: Any) {
-        if (applicationContext == null) return
+        // if (applicationContext == null) return
         
         var currentClass: Class<*>? = instance.javaClass
         while (currentClass != null && currentClass != Any::class.java) {
