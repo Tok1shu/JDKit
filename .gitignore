@@ -47,3 +47,4 @@ bin/
 ### DiscordBotCore ###
 .env
 /docs
+gradle.properties
