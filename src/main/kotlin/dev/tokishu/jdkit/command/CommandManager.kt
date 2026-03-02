@@ -42,6 +42,38 @@ import java.lang.reflect.Member
 import java.lang.reflect.Method
 import java.util.concurrent.ConcurrentHashMap
 
+/**
+ * Core manager responsible for command registration and dispatch.
+ *
+ * ## Command Registration (startup)
+ * During [onEnable], all classes annotated with [@JDKitCommand][JDKitCommand] and
+ * [@JDKitContextMenu][JDKitContextMenu] in the configured base package are discovered
+ * via reflection. Their [CommandData] descriptors are collected into a single list and
+ * submitted to Discord in **one bulk request** via [JDA.updateCommands]:
+ * ```
+ * jda.updateCommands().addCommands(commandDataList).queue()
+ * ```
+ * This avoids the per-command [JDA.upsertCommand] loop that would trigger Discord API
+ * rate-limits (HTTP 429) when a bot has many commands.
+ *
+ * > **Note:** `updateCommands()` **replaces** the full set of registered commands.
+ * > Any command not present in the list will be removed from Discord.
+ *
+ * ## Command Execution (runtime)
+ * Incoming [SlashCommandInteractionEvent], [UserContextInteractionEvent], and
+ * [MessageContextInteractionEvent] events are handled on the JDA gateway thread.
+ * Argument mapping and interceptor checks run synchronously on that thread. The actual
+ * `execute` method of the command is then dispatched off the gateway thread using a
+ * Kotlin Coroutine:
+ * ```
+ * scope.launch { wrapper.method.invoke(wrapper.instance, *args) }
+ * ```
+ * The [scope] uses [Dispatchers.Default] (a shared, CPU-bounded thread pool) together
+ * with a [SupervisorJob], so:
+ * - The pool size is bounded (avoids the unbounded thread creation that
+ *   `Executors.newCachedThreadPool()` / `CompletableFuture.runAsync()` caused).
+ * - A failure in one command coroutine does not cancel other running coroutines.
+ */
 class CommandManager : ListenerAdapter(), BotExtension {
 
     private val logger = LoggerFactory.getLogger(CommandManager::class.java)
@@ -49,7 +81,14 @@ class CommandManager : ListenerAdapter(), BotExtension {
     private lateinit var jda: JDA
     private lateinit var config: JDKitProperties
 
-    // Execute commands asynchronously using Kotlin Coroutines
+    /**
+     * Coroutine scope used to execute command handlers off the JDA gateway thread.
+     *
+     * [Dispatchers.Default] uses a shared thread pool bounded to
+     * `max(2, availableProcessors)` threads, preventing thread exhaustion under load.
+     * [SupervisorJob] ensures an exception in one child coroutine does not propagate
+     * to siblings or cancel the scope.
+     */
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
     private val storedCommands = mutableMapOf<String, CommandWrapper>()
@@ -75,7 +114,10 @@ class CommandManager : ListenerAdapter(), BotExtension {
     }
 
     /**
-     * Scans the given package for classes annotated with @JDKitCommand.
+     * Scans the given package for classes annotated with [@JDKitCommand][JDKitCommand],
+     * builds their [CommandData] descriptors (including subcommands and options),
+     * then delegates to [registerContextMenus] before sending everything in a single
+     * bulk request via [bulkRegisterCommands].
      */
     private fun registerCommands(packageName: String) {
         val reflections = Reflections(packageName, Scanners.TypesAnnotated, Scanners.MethodsAnnotated)
@@ -193,6 +235,17 @@ class CommandManager : ListenerAdapter(), BotExtension {
         }
     }
 
+    /**
+     * Registers all collected [CommandData] (slash commands + context menus) with Discord
+     * in a single API request, avoiding per-command rate-limits.
+     *
+     * When [JDKitProperties.guild.onlyMainGuild] is `true`, commands are registered only
+     * for the configured main guild (propagation is instant). Otherwise they are
+     * registered globally (propagation can take up to one hour).
+     *
+     * > **Important:** [JDA.updateCommands] replaces the **entire** command set. Any
+     * > command not included in [commandDataList] will be removed from Discord.
+     */
     private fun bulkRegisterCommands(commandDataList: List<CommandData>) {
         logger.info("Bulk registering {} command(s) in a single request", commandDataList.size)
         if (config.guild.onlyMainGuild && config.guild.main.isNotBlank()) {
