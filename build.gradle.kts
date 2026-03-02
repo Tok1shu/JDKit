@@ -8,7 +8,7 @@ plugins {
 }
 
 group = "dev.tokishu"
-version = "1.0.1-test"
+version = "1.0.2-test"
 
 repositories {
     mavenCentral()
