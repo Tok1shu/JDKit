@@ -31,16 +31,14 @@ import net.dv8tion.jda.api.interactions.commands.build.Commands
 import net.dv8tion.jda.api.interactions.commands.build.OptionData
 import net.dv8tion.jda.api.interactions.commands.build.SlashCommandData
 import net.dv8tion.jda.api.interactions.commands.build.SubcommandData
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.launch
 import org.reflections.Reflections
 import org.reflections.scanners.Scanners
 import org.slf4j.LoggerFactory
 import java.lang.reflect.Member
 import java.lang.reflect.Method
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.Executors.newCachedThreadPool
 
 class CommandManager : ListenerAdapter(), BotExtension {
 
@@ -49,8 +47,8 @@ class CommandManager : ListenerAdapter(), BotExtension {
     private lateinit var jda: JDA
     private lateinit var config: JDKitProperties
 
-    // Execute commands asynchronously using Kotlin Coroutines
-    private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
+    // Execute commands asynchronously on JVM thread pool
+    private val executor = newCachedThreadPool()
 
     private val storedCommands = mutableMapOf<String, CommandWrapper>()
     private val subCommands = mutableMapOf<String, MutableMap<String, CommandWrapper>>()
@@ -81,8 +79,6 @@ class CommandManager : ListenerAdapter(), BotExtension {
         val reflections = Reflections(packageName, Scanners.TypesAnnotated, Scanners.MethodsAnnotated)
         val classes = reflections.getTypesAnnotatedWith(JDKitCommand::class.java)
         val subCommandClasses = reflections.getTypesAnnotatedWith(JDKitSubcommand::class.java)
-
-        val commandDataList = mutableListOf<CommandData>()
 
         for (clazz in classes) {
             val jdaCommand = clazz.getAnnotation(JDKitCommand::class.java)
@@ -132,11 +128,11 @@ class CommandManager : ListenerAdapter(), BotExtension {
                 cmdData.addOptions(opt)
             }
 
-            commandDataList.add(cmdData)
+            // Register commands depending on the config
+            upsertCommand(cmdData)
         }
 
-        registerContextMenus(reflections, commandDataList)
-        bulkRegisterCommands(commandDataList)
+        registerContextMenus(reflections)
     }
 
     private fun registerStandaloneSubcommands(
@@ -168,7 +164,7 @@ class CommandManager : ListenerAdapter(), BotExtension {
         }
     }
 
-    private fun registerContextMenus(reflections: Reflections, commandDataList: MutableList<CommandData>) {
+    private fun registerContextMenus(reflections: Reflections) {
         val contextMenuClasses = reflections.getTypesAnnotatedWith(JDKitContextMenu::class.java)
         for (clazz in contextMenuClasses) {
             val anno = clazz.getAnnotation(JDKitContextMenu::class.java)
@@ -188,18 +184,17 @@ class CommandManager : ListenerAdapter(), BotExtension {
                 contextCommands[name] = ContextMenuWrapper(instance, executeMethod, anno.type)
                 logger.info("Registered Context Menu /{} ({})", name, anno.type)
                 
-                commandDataList.add(cmdData)
+                upsertCommand(cmdData)
             }
         }
     }
 
-    private fun bulkRegisterCommands(commandDataList: List<CommandData>) {
-        logger.info("Bulk registering {} command(s) in a single request", commandDataList.size)
+    private fun upsertCommand(cmdData: CommandData) {
         if (config.guild.onlyMainGuild && config.guild.main.isNotBlank()) {
             val guild = jda.getGuildById(config.guild.main)
-            guild?.updateCommands()?.addCommands(commandDataList)?.queue()
+            guild?.upsertCommand(cmdData)?.queue()
         } else {
-            jda.updateCommands().addCommands(commandDataList).queue()
+            jda.upsertCommand(cmdData).queue()
         }
     }
 
@@ -261,7 +256,7 @@ class CommandManager : ListenerAdapter(), BotExtension {
             // Dynamically map arguments
             val args = ArgumentMapper.mapArguments(wrapper.method, event)
 
-            scope.launch {
+            CompletableFuture.runAsync({
                 try {
                     wrapper.method.invoke(wrapper.instance, *args)
                 } catch (e: Exception) {
@@ -273,7 +268,7 @@ class CommandManager : ListenerAdapter(), BotExtension {
                         }
                     }
                 }
-            }
+            }, executor)
 
         } catch (e: Exception) {
             println("Core: Error mapping slash command arguments for /${baseName} ${subName ?: ""}")
@@ -303,7 +298,7 @@ class CommandManager : ListenerAdapter(), BotExtension {
 
         try {
             val args = mapContextArguments(wrapper, event)
-            scope.launch {
+            CompletableFuture.runAsync({
                 try {
                     wrapper.method.invoke(wrapper.instance, *args)
                 } catch (e: Exception) {
@@ -315,7 +310,7 @@ class CommandManager : ListenerAdapter(), BotExtension {
                         }
                     }
                 }
-            }
+            }, executor)
         } catch (e: Exception) {
             logger.error("Error mapping arguments for User Context Menu {}", name, e)
             e.printStackTrace()
@@ -332,7 +327,7 @@ class CommandManager : ListenerAdapter(), BotExtension {
 
         try {
             val args = mapContextArguments(wrapper, event)
-            scope.launch {
+            CompletableFuture.runAsync({
                 try {
                     wrapper.method.invoke(wrapper.instance, *args)
                 } catch (e: Exception) {
@@ -344,7 +339,7 @@ class CommandManager : ListenerAdapter(), BotExtension {
                         }
                     }
                 }
-            }
+            }, executor)
         } catch (e: Exception) {
             logger.error("Error mapping arguments for Message Context Menu {}", name, e)
             e.printStackTrace()
